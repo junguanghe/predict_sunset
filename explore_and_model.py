@@ -148,6 +148,8 @@ else:
 #   - lat × day_sin/cos         : seasonal swing scales with latitude
 #   - lat² × day_sin/cos        : non-linearity at extreme latitudes
 #   - abs_lat                   : symmetric latitude effect on avg day length
+#   - tz_offset                 : longitude offset from timezone center
+#                                 (within a timezone, further west → later sunset)
 
 # Trig encoding of annual cycle
 df["day_sin"] = np.sin(2 * np.pi * df["day_of_year"] / 365.25)
@@ -162,6 +164,10 @@ df["lat2_x_day_sin"] = (df["latitude"] ** 2) * df["day_sin"]
 df["lat2_x_day_cos"] = (df["latitude"] ** 2) * df["day_cos"]
 
 df["abs_lat"] = df["latitude"].abs()
+
+# Longitude offset from timezone center (timezones centered at 0, ±15, ±30, ...)
+# Range: [-7.5, +7.5] degrees.  Positive = east of center → earlier local sunset.
+df["tz_offset"] = ((df["longitude"] + 7.5) % 15) - 7.5
 
 print("\n" + "=" * 60)
 print("FEATURE SUMMARY")
@@ -238,7 +244,7 @@ print("\n✓ Saved EDA plots → eda_plots.png")
 
 feature_cols = [
     "latitude",
-    "longitude",
+    "tz_offset",
     "day_sin",
     "day_cos",
     "lat_x_day_sin",
@@ -357,6 +363,7 @@ print()
 
 pa_lat, pa_lon = 37.4, -122.14
 pa_doy = 59  # Feb 28
+pa_tz_offset = ((pa_lon + 7.5) % 15) - 7.5
 
 pa_day_sin = np.sin(2 * np.pi * pa_doy / 365.25)
 pa_day_cos = np.cos(2 * np.pi * pa_doy / 365.25)
@@ -364,7 +371,7 @@ pa_x = np.array(
     [
         [
             pa_lat,
-            pa_lon,
+            pa_tz_offset,
             pa_day_sin,
             pa_day_cos,
             pa_lat * pa_day_sin,
