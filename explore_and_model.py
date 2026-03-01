@@ -434,42 +434,28 @@ print(
 )
 print()
 
-# ── 8. PALO ALTO PREDICTION ──────────────────────────────────────────────────
+# ── 8. CITY PREDICTIONS ───────────────────────────────────────────────────────
 
-pa_lat, pa_lon = 37.4, -122.14
-pa_doy = 59  # Feb 28
-pa_tz_offset = ((pa_lon + 7.5) % 15) - 7.5
 
-pa_day_sin = np.sin(2 * np.pi * pa_doy / 365.25)
-pa_day_cos = np.cos(2 * np.pi * pa_doy / 365.25)
-pa_x = np.array(
-    [
-        [
-            pa_lat,
-            pa_tz_offset,
-            pa_day_sin,
-            pa_day_cos,
-            pa_lat * pa_day_sin,
-            pa_lat * pa_day_cos,
-            pa_lat**2 * pa_day_sin,
-            pa_lat**2 * pa_day_cos,
-            abs(pa_lat),
-        ]
-    ]
-)
+def predict_city(name, lat, lon, doy):
+    tz_off = ((lon + 7.5) % 15) - 7.5
+    ds = np.sin(2 * np.pi * doy / 365.25)
+    dc = np.cos(2 * np.pi * doy / 365.25)
+    x = np.array(
+        [[lat, tz_off, ds, dc, lat * ds, lat * dc, lat**2 * ds, lat**2 * dc, abs(lat)]]
+    )
+    print(f"\n{'=' * 60}")
+    print(f"{name}  (lat={lat}, lon={lon}, day={doy})")
+    print(f"{'=' * 60}")
+    for model_name, pred in [
+        ("Linear Regression", lr.predict(x)[0]),
+        ("Poly-2 Ridge", ridge.predict(poly.transform(x))[0]),
+        ("Gradient Boosted Trees", gbt.predict(x)[0]),
+    ]:
+        h, m = int(pred // 60), int(pred % 60)
+        print(f"  {model_name:<25s} → {h}:{m:02d}  ({pred:.0f} min)")
 
-pred_lr_pa = lr.predict(pa_x)[0]
-pred_ridge_pa = ridge.predict(poly.transform(pa_x))[0]
-pred_gbt_pa = gbt.predict(pa_x)[0]
 
-print("=" * 60)
-print("PALO ALTO PREDICTION  (37.4°N, 122.14°W, Feb 28)")
-print("=" * 60)
-for name, p in [
-    ("Linear Regression", pred_lr_pa),
-    ("Poly-2 Ridge", pred_ridge_pa),
-    ("Gradient Boosted Trees", pred_gbt_pa),
-]:
-    h, m = int(p // 60), int(p % 60)
-    print(f"  {name:<25s} → {h}:{m:02d}  ({p:.0f} min)")
+predict_city("PALO ALTO", 37.4, -122.14, 59)  # Feb 28
+predict_city("CHICAGO", 41.88, -87.63, 59)  # Feb 28
 print()
