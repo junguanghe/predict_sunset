@@ -239,6 +239,62 @@ plt.savefig("eda_plots.png", dpi=150)
 plt.close()
 print("\n✓ Saved EDA plots → eda_plots.png")
 
+# ── 4b. SUNSET vs DAY-OF-YEAR BY LATITUDE BUCKET ─────────────────────────────
+
+lat_bins = [-90, -60, -40, -20, 0, 20, 40, 60, 90]
+lat_labels = [
+    "60–90°S",
+    "40–60°S",
+    "20–40°S",
+    "0–20°S",
+    "0–20°N",
+    "20–40°N",
+    "40–60°N",
+    "60–90°N",
+]
+df["lat_bucket"] = pd.cut(df["latitude"], bins=lat_bins, labels=lat_labels)
+
+cmap = plt.cm.get_cmap("coolwarm", len(lat_labels))
+colors = {label: cmap(i) for i, label in enumerate(lat_labels)}
+
+fig, ax = plt.subplots(figsize=(14, 7))
+for label in lat_labels:
+    sub = df[df["lat_bucket"] == label]
+    ax.scatter(
+        sub["day_of_year"],
+        sub["sunset_minutes"],
+        c=[colors[label]],
+        s=2,
+        alpha=0.3,
+        label=label,
+    )
+
+ax.set_xlabel("Day of Year", fontsize=12)
+ax.set_ylabel("Local Sunset Time (min since midnight)", fontsize=12)
+ax.set_title("Local Sunset Time vs Day of Year by Latitude Bucket", fontsize=14)
+
+# format y-axis as HH:MM
+yticks = [0, 120, 240, 360, 480, 600, 720, 840, 960, 1080, 1200, 1320, 1440]
+ax.set_yticks(yticks)
+ax.set_yticklabels([f"{t//60}:{t%60:02d}" for t in yticks])
+
+# legend outside plot
+handles, labels = ax.get_legend_handles_labels()
+ax.legend(
+    handles,
+    labels,
+    loc="upper left",
+    bbox_to_anchor=(1.01, 1),
+    title="Latitude",
+    markerscale=4,
+    frameon=True,
+)
+
+plt.tight_layout()
+plt.savefig("sunset_by_lat_bucket.png", dpi=150, bbox_inches="tight")
+plt.close()
+print("✓ Saved sunset by latitude bucket → sunset_by_lat_bucket.png")
+
 # ── 5. MODEL TRAINING ────────────────────────────────────────────────────────
 #
 # Longitude excluded — it shouldn't affect local sunset time.
