@@ -27,6 +27,7 @@ from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.ensemble import HistGradientBoostingRegressor
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -305,36 +306,56 @@ print(f"  RMSE = {rmse_ridge:.2f} min  ({rmse_ridge/60:.1f} h)")
 print(f"  R²   = {r2_ridge:.4f}")
 print(f"  # features (after poly): {X_train_poly.shape[1]}")
 
+# ── 5c. Gradient Boosted Trees ────────────────────────────────────────────────
+
+gbt = HistGradientBoostingRegressor(
+    max_iter=500,
+    max_depth=8,
+    learning_rate=0.05,
+    min_samples_leaf=20,
+    random_state=42,
+)
+gbt.fit(X_train, y_train)
+y_pred_gbt = gbt.predict(X_test)
+
+mae_gbt = mean_absolute_error(y_test, y_pred_gbt)
+rmse_gbt = np.sqrt(mean_squared_error(y_test, y_pred_gbt))
+r2_gbt = r2_score(y_test, y_pred_gbt)
+
+print(f"\n--- Gradient Boosted Trees (HistGBR) ---")
+print(f"  MAE  = {mae_gbt:.2f} min  ({mae_gbt/60:.1f} h)")
+print(f"  RMSE = {rmse_gbt:.2f} min  ({rmse_gbt/60:.1f} h)")
+print(f"  R²   = {r2_gbt:.4f}")
+
 # ── 6. DIAGNOSTICS ───────────────────────────────────────────────────────────
 
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+models_preds = [
+    (y_pred_lr, "Linear Regression"),
+    (y_pred_ridge, "Poly-2 Ridge"),
+    (y_pred_gbt, "Gradient Boosted Trees"),
+]
+
+fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 fig.suptitle("Model Diagnostics (local sunset time)", fontsize=14)
 
-for ax, y_pred, name in [
-    (axes[0, 0], y_pred_lr, "Linear Regression"),
-    (axes[0, 1], y_pred_ridge, "Poly-2 Ridge"),
-]:
+for i, (y_pred, name) in enumerate(models_preds):
     residuals = y_test - y_pred
-    ax.scatter(y_pred, residuals, s=1, alpha=0.3)
-    ax.axhline(0, color="red", linewidth=1)
-    ax.set_xlabel("Predicted (min)")
-    ax.set_ylabel("Residual (min)")
-    ax.set_title(
+    axes[0, i].scatter(y_pred, residuals, s=1, alpha=0.3)
+    axes[0, i].axhline(0, color="red", linewidth=1)
+    axes[0, i].set_xlabel("Predicted (min)")
+    axes[0, i].set_ylabel("Residual (min)")
+    axes[0, i].set_title(
         f"Residuals: {name}\nMAE={mean_absolute_error(y_test, y_pred):.1f} min  "
         f"R²={r2_score(y_test, y_pred):.3f}"
     )
 
-for ax, y_pred, name in [
-    (axes[1, 0], y_pred_lr, "Linear Regression"),
-    (axes[1, 1], y_pred_ridge, "Poly-2 Ridge"),
-]:
-    ax.scatter(y_test, y_pred, s=1, alpha=0.2)
+    axes[1, i].scatter(y_test, y_pred, s=1, alpha=0.2)
     lims = [min(y_test.min(), y_pred.min()), max(y_test.max(), y_pred.max())]
-    ax.plot(lims, lims, "r--", linewidth=1, label="perfect")
-    ax.set_xlabel("Actual (min)")
-    ax.set_ylabel("Predicted (min)")
-    ax.set_title(f"Actual vs Predicted: {name}")
-    ax.legend()
+    axes[1, i].plot(lims, lims, "r--", linewidth=1, label="perfect")
+    axes[1, i].set_xlabel("Actual (min)")
+    axes[1, i].set_ylabel("Predicted (min)")
+    axes[1, i].set_title(f"Actual vs Predicted: {name}")
+    axes[1, i].legend()
 
 plt.tight_layout()
 plt.savefig("model_diagnostics.png", dpi=150)
@@ -352,11 +373,9 @@ print(f"  {'Linear Regression':<25s} {mae_lr:>10.2f} {rmse_lr:>11.2f} {r2_lr:>8.
 print(
     f"  {'Poly-2 Ridge':<25s} {mae_ridge:>10.2f} {rmse_ridge:>11.2f} {r2_ridge:>8.4f}"
 )
-print()
-print("Notes:")
-print("  - Sunset times are LOCAL time.")
-print("  - Main drivers: latitude and day_of_year.")
-print("  - Longitude captures within-timezone variation.")
+print(
+    f"  {'Gradient Boosted Trees':<25s} {mae_gbt:>10.2f} {rmse_gbt:>11.2f} {r2_gbt:>8.4f}"
+)
 print()
 
 # ── 8. PALO ALTO PREDICTION ──────────────────────────────────────────────────
@@ -385,11 +404,16 @@ pa_x = np.array(
 
 pred_lr_pa = lr.predict(pa_x)[0]
 pred_ridge_pa = ridge.predict(poly.transform(pa_x))[0]
+pred_gbt_pa = gbt.predict(pa_x)[0]
 
 print("=" * 60)
 print("PALO ALTO PREDICTION  (37.4°N, 122.14°W, Feb 28)")
 print("=" * 60)
-for name, p in [("Linear Regression", pred_lr_pa), ("Poly-2 Ridge", pred_ridge_pa)]:
+for name, p in [
+    ("Linear Regression", pred_lr_pa),
+    ("Poly-2 Ridge", pred_ridge_pa),
+    ("Gradient Boosted Trees", pred_gbt_pa),
+]:
     h, m = int(p // 60), int(p % 60)
     print(f"  {name:<25s} → {h}:{m:02d}  ({p:.0f} min)")
 print()
